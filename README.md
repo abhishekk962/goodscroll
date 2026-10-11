@@ -1,6 +1,68 @@
-# Next.js template
+# Goodscroll
 
-This is a Next.js template with shadcn/ui.
+Goodscroll turns your OpenCode project conversations into a social-style learning
+feed, with educational carousels, animated text reels, project chats, and web search.
+Built with Next.js, shadcn/ui, and an optional Electron desktop shell.
+
+## Features
+
+- **Project learning feed:** Extract topics from recent OpenCode conversations and
+  turn them into educational carousel posts with 3–6 slides and short captions.
+- **Animated text reels:** Learn through short text sequences with playback
+  controls and readable transcripts.
+- **Project chats:** Open and continue OpenCode conversations, with a project
+  default model or a model override for each chat.
+- **Project accounts:** Switch between projects and global chats, add repositories,
+  and browse working folders within the selected project.
+- **Personalized learning:** Like and comment on generated posts to guide future
+  batches, with an option to disable feedback-based personalization.
+- **Generation controls:** Choose the generation model, learning depth, and recent
+  conversation window, or pause automatic generation.
+- **Generation insights:** Inspect pipeline status, extracted topics, source chats,
+  feedback, and the settings, inputs, results, and errors from recent runs.
+- **Web search and reading:** Search with Nimble, read extracted pages, and revisit
+  recent sites through saved previews.
+- **Desktop browsing:** Open live websites in the Electron app with address
+  navigation, back/forward, reload, and locally captured page screenshots.
+- **Persistent local content:** Store generated topics, posts, reels, and feedback
+  in SQLite, scoped to the OpenCode server and project. Feeds replenish as you read.
+- **Appearance settings:** Configure the app's appearance alongside connection,
+  authentication, timeout, and project preferences.
+
+## Screenshots
+
+<table>
+  <tr>
+    <th>Learning feed</th>
+    <th>Project accounts</th>
+  </tr>
+  <tr>
+    <td><img src="public/Screenshot%202026-10-11%20170221.png" alt="Generated educational carousel in the Goodscroll learning feed" width="280"></td>
+    <td><img src="public/Screenshot%202026-10-11%20170250.png" alt="Project account switcher and project settings" width="280"></td>
+  </tr>
+  <tr>
+    <th>Working folder picker</th>
+    <th>Chat and model selection</th>
+  </tr>
+  <tr>
+    <td><img src="public/Screenshot%202026-10-11%20170305.png" alt="Folder browser for choosing a project's working folder" width="280"></td>
+    <td><img src="public/Screenshot%202026-10-11%20170355.png" alt="OpenCode project conversation with the chat model selector open" width="280"></td>
+  </tr>
+  <tr>
+    <th>Search and recent sites</th>
+    <th>Reader view</th>
+  </tr>
+  <tr>
+    <td><img src="public/Screenshot%202026-10-11%20170407.png" alt="Web search and recent website previews" width="280"></td>
+    <td><img src="public/Screenshot%202026-10-11%20170429.png" alt="Extracted web page displayed in the Reader view" width="280"></td>
+  </tr>
+  <tr>
+    <th colspan="2">Animated text reels</th>
+  </tr>
+  <tr>
+    <td colspan="2" align="center"><img src="public/Screenshot%202026-10-11%20170439.png" alt="AI-generated educational text reel with playback controls and transcript" width="280"></td>
+  </tr>
+</table>
 
 ## Accounts and settings
 
