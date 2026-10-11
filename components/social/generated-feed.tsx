@@ -13,6 +13,23 @@ import type { FeedContent, FeedState } from "@/lib/content-types"
 import { PostFeedback } from "@/components/social/post-feedback"
 import { SaveButton } from "@/components/social/save-button"
 
+const postBackgrounds = [
+  "bg-gradient-to-br from-indigo-500/20 via-violet-500/10 to-teal-500/20",
+  "bg-gradient-to-tr from-rose-500/20 via-pink-500/10 to-orange-500/20",
+  "bg-gradient-to-bl from-emerald-500/20 via-teal-500/10 to-cyan-500/20",
+  "bg-gradient-to-r from-amber-500/20 via-orange-500/10 to-rose-500/20",
+  "bg-gradient-to-tl from-sky-500/20 via-blue-500/10 to-indigo-500/20",
+  "bg-gradient-to-b from-fuchsia-500/20 via-purple-500/10 to-rose-500/20",
+]
+
+function postBackground(id: string) {
+  let hash = 0
+  for (const character of id) {
+    hash = (Math.imul(hash, 31) + character.charCodeAt(0)) >>> 0
+  }
+  return postBackgrounds[hash % postBackgrounds.length]
+}
+
 export function GeneratedFeed({
   kind,
   contentID,
@@ -319,7 +336,9 @@ export function GeneratedCard({
           </p>
         </div>
       </header>
-      <div className="relative flex aspect-square flex-col justify-center bg-gradient-to-br from-indigo-500/20 via-violet-500/10 to-teal-500/20 p-8 sm:p-10">
+      <div
+        className={`relative flex aspect-square flex-col justify-center p-8 sm:p-10 ${postBackground(item.id)}`}
+      >
         <p className="mb-5 shrink-0 text-xs font-semibold tracking-widest text-muted-foreground">
           {item.slides.length
             ? `LEARN SOMETHING · ${slide + 1} / ${item.slides.length}`
