@@ -68,14 +68,29 @@ export async function POST(request: Request) {
     typeof body.title === "string"
       ? body.title.slice(0, 300)
       : new URL(url).hostname
+  const suppliedSnapshot =
+    body.screenshot === undefined ? null : pngSnapshot(body.screenshot)
+  if (body.screenshot !== undefined && !suppliedSnapshot)
+    return Response.json({ error: "Invalid PNG snapshot." }, { status: 400 })
   const visit = recordVisit(user, url, title)
+  if (suppliedSnapshot)
+    saveSnapshot(
+      user,
+      String(visit.id),
+      suppliedSnapshot,
+      String(visit.markdown ?? "")
+    )
   let snapshotError: string | null = null
-  if (!visit.screenshot || !visit.markdown || body.refresh === true) {
+  if (
+    !suppliedSnapshot &&
+    body.recordOnly !== true &&
+    (!visit.screenshot || !visit.markdown || body.refresh === true)
+  ) {
     try {
       const result = await nimbleClient().extract.run({
         url,
         render: true,
-        formats: ["screenshot", "markdown"],
+        formats: visit.screenshot ? ["markdown"] : ["screenshot", "markdown"],
       })
       if (result.status !== "success") throw new Error("Extraction failed")
       const screenshot = pngSnapshot(result.data?.screenshots?.[0])
@@ -85,7 +100,7 @@ export async function POST(request: Request) {
         screenshot,
         result.data?.markdown ?? ""
       )
-      if (!screenshot)
+      if (!screenshot && !visit.screenshot)
         snapshotError =
           "A page preview could not be captured. You can still browse the site."
     } catch {

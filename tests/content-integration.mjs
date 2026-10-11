@@ -27,6 +27,7 @@ test(
     let topicCalls = 0
     let sequence = 0
     let invalidContent = false
+    let expectedModel = "chat"
     const generationInputs = []
     const mock = createServer(async (req, res) => {
       const url = new URL(req.url, "http://localhost")
@@ -58,6 +59,14 @@ test(
                 },
                 chat: {
                   id: "chat",
+                  capabilities: {
+                    input: { text: true },
+                    output: { text: true },
+                  },
+                },
+                editor: {
+                  id: "editor",
+                  name: "Generation editor",
                   capabilities: {
                     input: { text: true },
                     output: { text: true },
@@ -112,7 +121,7 @@ test(
         agentCalls++
         assert.equal(
           body.model.modelID,
-          "chat",
+          expectedModel,
           "generation avoids non-chat provider defaults"
         )
         assert.equal(body.tools["*"], false)
@@ -240,6 +249,67 @@ test(
           output += `\nAPI response: ${JSON.stringify(lastResponse)}`
         return lastResponse.status === 200
       })
+      const settingsRequest = async (
+        body,
+        project = "alpha",
+        origin = base
+      ) => {
+        const response = await fetch(
+          `${base}/api/generation-settings?project=${project}`,
+          {
+            method: body === undefined ? "GET" : "PUT",
+            headers: { Origin: origin, "Content-Type": "application/json" },
+            ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+          }
+        )
+        return { status: response.status, data: await response.json() }
+      }
+      const insightRequest = async (project) => {
+        const response = await fetch(
+          `${base}/api/generation-insights?project=${project}`
+        )
+        assert.equal(response.status, 200)
+        return response.json()
+      }
+      const defaults = (await settingsRequest()).data
+      assert.equal(defaults.model, null)
+      assert.equal(defaults.enabled, true)
+      assert.equal(
+        (await settingsRequest({ ...defaults, sourceLimit: 0 })).status,
+        400
+      )
+      assert.equal(
+        (await settingsRequest({ ...defaults, depth: "invalid" })).status,
+        400
+      )
+      assert.equal(
+        (await settingsRequest({ ...defaults, model: "mock/whisper" })).status,
+        400,
+        "non-text models are rejected"
+      )
+      assert.equal(
+        (
+          await settingsRequest(
+            { ...defaults, enabled: false },
+            "alpha",
+            "http://evil.example"
+          )
+        ).status,
+        403
+      )
+      assert.equal(
+        (await settingsRequest({ ...defaults, enabled: false })).status,
+        200
+      )
+      await request("alpha", {})
+      assert.equal(agentCalls, 0, "paused generation never calls a model")
+      assert.equal((await request("alpha")).data.generationEnabled, false)
+      assert.deepEqual(
+        (await insightRequest("alpha")).runs,
+        [],
+        "insights are read-only"
+      )
+      await settingsRequest({ reset: true })
       await Promise.all(Array.from({ length: 4 }, () => request("alpha", {})))
       await eventually(
         async () => (await request("alpha")).data.items.length === 12
@@ -253,6 +323,38 @@ test(
       assert.equal(alpha.items.filter((item) => item.kind === "post").length, 6)
       assert.equal(alpha.items.filter((item) => item.kind === "reel").length, 6)
       assert.equal((await request("beta")).data.items.length, 0)
+      const initialInsights = await insightRequest("alpha")
+      assert.equal(initialInsights.runs[0].status, "complete")
+      assert.equal(initialInsights.runs[0].model, "mock/chat")
+      assert.equal(initialInsights.runs[0].data.topicExtraction, true)
+      assert.equal(initialInsights.runs[0].data.sources[0].id, "alpha-chat")
+      assert.equal(
+        initialInsights.runs[0].data.sources[0].messages[0].text,
+        "Explain cache invalidation and choosing a useful TTL."
+      )
+      assert.deepEqual(
+        initialInsights.runs[0].data.contentInput,
+        generationInputs[0].input,
+        "insights retain the exact content-agent input"
+      )
+      assert.equal(initialInsights.stats.posts, 6)
+      assert.equal(
+        (await insightRequest("beta")).runs.length,
+        0,
+        "run snapshots are isolated by project"
+      )
+      const profileHTML = await (
+        await fetch(`${base}/profile?project=alpha`)
+      ).text()
+      assert.match(profileHTML, /Generation model/)
+      assert.match(profileHTML, /Content generation insights/)
+      assert.match(profileHTML, /Generation editor/)
+      assert.doesNotMatch(profileHTML, /value="mock\/whisper"/)
+      const insightHTML = await (
+        await fetch(`${base}/generation?project=alpha`)
+      ).text()
+      assert.match(insightHTML, /What shapes your feed/)
+      assert.match(insightHTML, /Source conversations checked/)
       assert.equal(
         (await request("beta", { seenID: alpha.items[0].id })).status,
         404
@@ -268,6 +370,26 @@ test(
       })
       assert.equal(rejected.status, 403)
       const posts = alpha.items.filter((item) => item.kind === "post")
+      const configured = {
+        ...defaults,
+        model: "mock/editor",
+        depth: "advanced",
+        sourceLimit: 1,
+      }
+      assert.equal((await settingsRequest(configured)).status, 200)
+      assert.deepEqual(
+        (await settingsRequest(undefined, "beta")).data,
+        configured,
+        "generation settings apply to every project without cookies"
+      )
+      expectedModel = "editor"
+      sessions.push({
+        id: "alpha-older",
+        projectID: "alpha",
+        directory: "/alpha",
+        title: "Older conversation",
+        time: { created: 1, updated: 1 },
+      })
       const feedbackRequest = async (
         project,
         id,
@@ -412,6 +534,17 @@ test(
       assert.equal(adapted.input.feedback[0].topicID, alpha.topics[0].id)
       assert.deepEqual(adapted.input.feedback[0].comments, [comment.body])
       assert.match(adapted.system, /Instagram-style educational carousels/)
+      assert.equal(adapted.input.preferences.depth, "advanced")
+      const adaptedInsights = await insightRequest("alpha")
+      assert.equal(adaptedInsights.runs[0].model, "mock/editor")
+      assert.equal(adaptedInsights.runs[0].data.topicExtraction, false)
+      assert.deepEqual(adaptedInsights.runs[0].data.settings, configured)
+      assert.deepEqual(
+        adaptedInsights.runs[0].data.sources.map((item) => item.id),
+        ["alpha-chat"],
+        "source limit selects only the newest eligible conversation"
+      )
+      assert.deepEqual(adaptedInsights.runs[0].data.contentInput, adapted.input)
       database = new DatabaseSync(path)
       assert.equal(
         database.prepare("SELECT COUNT(*) AS count FROM post_likes").get()
@@ -482,6 +615,81 @@ test(
         agentCalls,
         callsBeforeRetry,
         "failures honor persisted cooldown"
+      )
+      const failureInsights = await insightRequest("beta")
+      assert.equal(failureInsights.runs[0].status, "failed")
+      assert.match(failureInsights.runs[0].error, /Invalid content topic/)
+      assert.equal(failureInsights.runs[0].data.generatedCounts, null)
+      invalidContent = false
+      const alphaScope = database
+        .prepare("SELECT scope FROM topics WHERE id=?")
+        .get(alpha.topics[0].id).scope
+      database
+        .prepare("UPDATE content SET seen_at=? WHERE scope=?")
+        .run(Date.now(), alphaScope)
+      database
+        .prepare("UPDATE pipeline SET retry_at=0 WHERE scope=?")
+        .run(alphaScope)
+      await settingsRequest({
+        ...configured,
+        useFeedback: false,
+        depth: "beginner",
+      })
+      await request("alpha", {})
+      await eventually(
+        async () => (await request("alpha")).data.items.length === 12
+      )
+      assert.deepEqual(
+        generationInputs.at(-1).input.feedback,
+        [],
+        "personalization off excludes saved feedback"
+      )
+      assert.equal(generationInputs.at(-1).input.preferences.depth, "beginner")
+      assert.equal(
+        (await insightRequest("alpha")).stats.comments,
+        1,
+        "personalization off preserves stored comments"
+      )
+      const persisted = JSON.parse(
+        database
+          .prepare("SELECT settings FROM generation_settings WHERE id=1")
+          .get().settings
+      )
+      assert.equal(persisted.model, "mock/editor")
+      assert.equal(persisted.useFeedback, false)
+      const callsBeforeChecks = agentCalls
+      for (let index = 0; index < 11; index++) {
+        const previousRun = (await insightRequest("alpha")).runs[0].id
+        database
+          .prepare("UPDATE pipeline SET checked_at=0,retry_at=0 WHERE scope=?")
+          .run(alphaScope)
+        await request("alpha", {})
+        await eventually(async () => {
+          const run = (await insightRequest("alpha")).runs[0]
+          return run.id !== previousRun && run.status === "complete"
+        })
+      }
+      const retained = await insightRequest("alpha")
+      assert.equal(
+        retained.runs.length,
+        10,
+        "only ten recent run inputs are retained"
+      )
+      assert.equal(
+        retained.runs[0].model,
+        null,
+        "source-only checks do not claim to have used a model"
+      )
+      assert.equal(
+        agentCalls,
+        callsBeforeChecks,
+        "unchanged sources and full queues do not call a model"
+      )
+      await settingsRequest({ reset: true })
+      assert.deepEqual(
+        (await settingsRequest()).data,
+        defaults,
+        "reset restores generation defaults"
       )
     } finally {
       database?.close()

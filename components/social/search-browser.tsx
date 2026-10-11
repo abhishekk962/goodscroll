@@ -1,6 +1,14 @@
 "use client"
 
-import { useEffect, useRef, useState, type FormEvent } from "react"
+import {
+  useEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  type FormEvent,
+} from "react"
+import { NativePage } from "@/components/social/native-page"
+import type { NativeBrowserState } from "@/lib/native-browser"
 import Image from "next/image"
 import { Streamdown } from "streamdown"
 import { publicWebURL } from "@/lib/web-url"
@@ -19,6 +27,7 @@ import { Button } from "@/components/ui/button"
 
 type Result = { url: string; title: string; description?: string }
 type Visit = Result & { id: string; visitedAt: number; hasSnapshot: boolean }
+const subscribeNative = () => () => {}
 
 async function json(response: Response) {
   const data = await response.json()
@@ -28,6 +37,14 @@ async function json(response: Response) {
 }
 
 export function SearchBrowser() {
+  const native = useSyncExternalStore(
+    subscribeNative,
+    () => window.goodscrollBrowser ?? null,
+    () => null
+  )
+  const [nativeState, setNativeState] = useState<NativeBrowserState | null>(
+    null
+  )
   const [query, setQuery] = useState("")
   const [searched, setSearched] = useState("")
   const [results, setResults] = useState<Result[]>([])
@@ -37,14 +54,14 @@ export function SearchBrowser() {
   const [trail, setTrail] = useState<Result[]>([])
   const [position, setPosition] = useState(-1)
   const [address, setAddress] = useState("")
-  const [reader, setReader] = useState(false)
+  const [reader, setReader] = useState(true)
   const [markdown, setMarkdown] = useState("")
   const [capturing, setCapturing] = useState(false)
   const [previewError, setPreviewError] = useState<string | null>(null)
-  const [frameKey, setFrameKey] = useState(0)
   const searchRequest = useRef<AbortController | null>(null)
   const visitRequest = useRef(0)
   const historyReady = useRef<Promise<void> | null>(null)
+  const lastNativeURL = useRef("")
   const active = trail[position]
 
   useEffect(() => {
@@ -58,7 +75,63 @@ export function SearchBrowser() {
     }
   }, [])
 
-  async function capture(page: Result, refresh = false) {
+  useEffect(() => {
+    if (!native) return
+    const stateSubscription = native.onState((state) => {
+      setNativeState(state)
+      if (state.url) {
+        setTrail([
+          { url: state.url, title: state.title || new URL(state.url).hostname },
+        ])
+        setPosition(0)
+        setAddress(state.url)
+        if (lastNativeURL.current !== state.url) {
+          lastNativeURL.current = state.url
+          void (async () => {
+            try {
+              await historyReady.current
+              const data = await fetch("/api/browser", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  url: state.url,
+                  title: state.title,
+                  recordOnly: true,
+                }),
+              }).then(json)
+              setVisits(data.visits)
+            } catch {
+              /* Keep navigation usable if local history is unavailable. */
+            }
+          })()
+        }
+      }
+    })
+    const snapshotSubscription = native.onSnapshot((snapshot) => {
+      void (async () => {
+        try {
+          await historyReady.current
+          const data = await fetch("/api/browser", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(snapshot),
+          }).then(json)
+          setVisits(data.visits)
+        } catch {
+          setPreviewError(
+            "The page opened, but its preview could not be saved."
+          )
+        }
+      })()
+    })
+    return () => {
+      stateSubscription()
+      snapshotSubscription()
+      void native.command("close").catch(() => {})
+    }
+  }, [native])
+
+  async function capture(page: Result, refresh = false, recordOnly = false) {
     const requestID = ++visitRequest.current
     setCapturing(true)
     setMarkdown("")
@@ -68,7 +141,7 @@ export function SearchBrowser() {
       const data = await fetch("/api/browser", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...page, refresh }),
+        body: JSON.stringify({ ...page, refresh, recordOnly }),
       }).then(json)
       setVisits(data.visits)
       // History may include several completed visits; reader content belongs only to the current page.
@@ -90,8 +163,12 @@ export function SearchBrowser() {
     setTrail((current) => [...current.slice(0, position + 1), page])
     setPosition(position + 1)
     setAddress(page.url)
-    setReader(false)
-    void capture(page)
+    setReader(!native)
+    if (native)
+      void native
+        .open(page.url)
+        .catch(() => setPreviewError("This page could not open. Try Reader."))
+    void capture(page, false, Boolean(native))
   }
 
   function move(next: number) {
@@ -99,7 +176,7 @@ export function SearchBrowser() {
     if (!page) return
     setPosition(next)
     setAddress(page.url)
-    setReader(false)
+    setReader(true)
     void capture(page)
   }
 
@@ -108,6 +185,7 @@ export function SearchBrowser() {
     setTrail([])
     setPosition(-1)
     setCapturing(false)
+    if (native) void native.command("close").catch(() => {})
     void fetch("/api/browser")
       .then(json)
       .then((data) => setVisits(data.visits))
@@ -198,8 +276,14 @@ export function SearchBrowser() {
               variant="ghost"
               size="icon"
               aria-label="Back"
-              disabled={position === 0}
-              onClick={() => move(position - 1)}
+              disabled={
+                native && !reader ? !nativeState?.canGoBack : position === 0
+              }
+              onClick={() =>
+                native && !reader
+                  ? void native.command("back")
+                  : move(position - 1)
+              }
             >
               <ArrowLeft />
             </Button>
@@ -207,8 +291,16 @@ export function SearchBrowser() {
               variant="ghost"
               size="icon"
               aria-label="Forward"
-              disabled={position === trail.length - 1}
-              onClick={() => move(position + 1)}
+              disabled={
+                native && !reader
+                  ? !nativeState?.canGoForward
+                  : position === trail.length - 1
+              }
+              onClick={() =>
+                native && !reader
+                  ? void native.command("forward")
+                  : move(position + 1)
+              }
             >
               <ArrowRight />
             </Button>
@@ -226,8 +318,8 @@ export function SearchBrowser() {
               aria-label="Refresh page and snapshot"
               disabled={capturing}
               onClick={() => {
-                setFrameKey((key) => key + 1)
-                void capture(active, true)
+                if (native && !reader) void native.command("reload")
+                else void capture(active, true)
               }}
             >
               <RotateCw className={capturing ? "animate-spin" : ""} />
@@ -246,6 +338,7 @@ export function SearchBrowser() {
               <Button
                 size="sm"
                 variant={reader ? "ghost" : "secondary"}
+                disabled={!native}
                 onClick={() => setReader(false)}
               >
                 Live page
@@ -253,13 +346,26 @@ export function SearchBrowser() {
               <Button
                 size="sm"
                 variant={reader ? "secondary" : "ghost"}
-                onClick={() => setReader(true)}
+                onClick={() => {
+                  setReader(true)
+                  void capture(active)
+                }}
               >
                 Reader
               </Button>
             </div>
             <a
               href={active.url}
+              onClick={(event) => {
+                if (native) {
+                  event.preventDefault()
+                  void native
+                    .external(active.url)
+                    .catch(() =>
+                      setPreviewError("Could not open your browser.")
+                    )
+                }
+              }}
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center gap-1 text-muted-foreground"
@@ -267,12 +373,12 @@ export function SearchBrowser() {
               Open outside <ExternalLink className="size-3" />
             </a>
           </div>
-          {previewError && (
+          {(previewError || (!reader && nativeState?.error)) && (
             <p
               role="status"
               className="px-3 py-2 text-xs text-muted-foreground"
             >
-              {previewError}
+              {previewError || nativeState?.error}
             </p>
           )}
           {reader ? (
@@ -317,20 +423,14 @@ export function SearchBrowser() {
                 </Streamdown>
               )}
             </article>
-          ) : (
-            <>
-              <p className="px-3 py-2 text-xs text-muted-foreground">
-                If this site blocks embedding, switch to Reader.
-              </p>
-              <iframe
-                key={`${active.url}:${frameKey}`}
-                src={active.url}
-                title={active.title}
-                sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
-                referrerPolicy="no-referrer"
-                className="min-h-0 w-full flex-1 border-0 bg-white"
-              />
-            </>
+          ) : native ? (
+            <NativePage browser={native} />
+          ) : null}
+          {!native && (
+            <p className="border-t px-3 py-2 text-xs text-muted-foreground">
+              Reader view in the web app. Use the Goodscroll desktop app to
+              browse the original site here.
+            </p>
           )}
         </div>
       ) : null}

@@ -24,6 +24,7 @@ export type PostFeedback = {
   comments: PostComment[]
 }
 export type FeedState = {
+  generationEnabled: boolean
   items: FeedContent[]
   history: FeedContent[]
   topics: Topic[]

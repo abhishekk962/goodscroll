@@ -20,6 +20,26 @@ override that model or choose **Use project default**. With no project default,
 OpenCode chooses the model. These preferences belong to Goodscroll; they do not
 modify the OpenCode server's configuration files.
 
+**Content generation** on Profile configures the model used for topic extraction,
+posts, and reels across every project and browser using this installation.
+These settings live in SQLite, independently of chat model preferences. Choose
+a connected text-generation model or Automatic, pause automatic generation,
+set a 1–12 conversation source window, choose beginner/balanced/advanced learning
+depth, and enable or disable personalization from likes and comments. Changes
+apply to the next run; an active run keeps its settings. Disabling personalization
+preserves feedback while excluding it from future model inputs. Reducing the
+source window does not delete already extracted topics.
+
+The **Content generation insights** link opens `/generation` for the selected
+project. It shows pipeline status, configured and resolved models, stored data
+counts, topics and source links, saved feedback, and the latest ten run snapshots.
+Snapshots retain the actual bounded conversation excerpts and content-agent input
+locally, including settings, selected topic summaries, feedback, previous titles,
+results counts, and errors. Inputs are sent to the selected provider through
+OpenCode. The page identifies skipped extraction and interrupted runs and never
+starts generation itself. Refresh to update its data. Snapshots are scoped to the
+OpenCode server and project; generation settings apply to the whole installation.
+
 Connection, project preferences, and the selected account are saved in persistent
 HTTP-only browser cookies. Chat model overrides and appearance use browser local
 storage. Project preferences and chat overrides are scoped to the server URL;
@@ -62,20 +82,20 @@ use another persistent local file. Database files are excluded from Git.
 
 Open Home or Reels with an OpenCode project selected. Goodscroll registers
 `goodscroll-topics` and `goodscroll-content` through the directory-scoped SDK
-configuration API. These custom agents use the project's chosen model (or
-OpenCode's default), with tools disabled. Registration adds the two agent
+configuration API. These custom agents use the app-wide generation model (or
+an automatically selected text model), with tools disabled. Registration adds the two agent
 definitions to the project's OpenCode configuration. It requires a connected
 OpenCode server and a configured model provider.
 
 Goodscroll verifies that registered agents actually appear in OpenCode's agent
 list. OpenCode 1.18.2 writes SDK project configuration to an ignored `config.json`;
 on affected servers, Goodscroll runs each custom system prompt through the built-in
-agent with tools disabled. Generation uses the explicit project model when set;
+agent with tools disabled. Generation uses the explicit app-wide generation model when set;
 otherwise it prefers a text-capable model from recent project conversations,
 then a connected text-capable provider default. Transcription and embedding
 models are excluded. Failures now retain the stage and underlying error message.
 
-The topic agent reads up to 12 recent root conversations in the selected project,
+The topic agent reads the configured number of recent root conversations (up to 12) in the selected project,
 with bounded text context. Topics retain source conversation IDs. A transcript
 hash avoids repeated extraction when conversations have not changed. The content
 agent turns stored topics into Instagram-style educational carousel posts with

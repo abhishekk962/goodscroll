@@ -3,6 +3,12 @@ import { dirname, resolve } from "node:path"
 import { DatabaseSync } from "node:sqlite"
 import { randomUUID, createHash } from "node:crypto"
 import type { FeedContent, PostFeedback, Topic } from "./content-types"
+import {
+  DEFAULT_GENERATION_SETTINGS,
+  type GenerationSettings,
+  type GenerationRun,
+  type GenerationRunData,
+} from "./generation-types"
 
 // Node 22.13+ supplies SQLite without a native npm dependency.
 type Row = Record<string, string | number | null>
@@ -43,13 +49,132 @@ export function db() {
     CREATE TABLE IF NOT EXISTS post_comments (
       id TEXT PRIMARY KEY, content_id TEXT NOT NULL REFERENCES content(id) ON DELETE CASCADE,
       body TEXT NOT NULL, created_at INTEGER NOT NULL);
-    CREATE INDEX IF NOT EXISTS comments_content ON post_comments(content_id, created_at);`)
+    CREATE INDEX IF NOT EXISTS comments_content ON post_comments(content_id, created_at);
+    CREATE TABLE IF NOT EXISTS generation_settings (id INTEGER PRIMARY KEY CHECK(id=1), settings TEXT NOT NULL);
+    CREATE TABLE IF NOT EXISTS generation_runs (
+      id TEXT PRIMARY KEY, scope TEXT NOT NULL, started_at INTEGER NOT NULL, finished_at INTEGER,
+      status TEXT NOT NULL, stage TEXT NOT NULL, model TEXT, data TEXT NOT NULL, error TEXT);
+    CREATE INDEX IF NOT EXISTS generation_runs_scope ON generation_runs(scope,started_at);`)
   return database
 }
 export function fingerprint(value: string) {
   return createHash("sha256")
     .update(value.trim().toLowerCase().replace(/\s+/g, " "))
     .digest("hex")
+}
+export function getGenerationSettings(): GenerationSettings {
+  const row = db()
+    .prepare("SELECT settings FROM generation_settings WHERE id=1")
+    .get()
+  return row
+    ? { ...DEFAULT_GENERATION_SETTINGS, ...JSON.parse(String(row.settings)) }
+    : { ...DEFAULT_GENERATION_SETTINGS }
+}
+export function saveGenerationSettings(settings: GenerationSettings) {
+  db()
+    .prepare(
+      "INSERT INTO generation_settings VALUES(1,?) ON CONFLICT(id) DO UPDATE SET settings=excluded.settings"
+    )
+    .run(JSON.stringify(settings))
+}
+export function recordGenerationRun(
+  scope: string,
+  id: string,
+  stage: string,
+  model: string | null,
+  data: GenerationRunData,
+  status: "running" | "complete" | "failed" = "running",
+  error: string | null = null
+) {
+  db()
+    .prepare(
+      `INSERT INTO generation_runs VALUES(?,?,?,NULL,?,?,?,?,?) ON CONFLICT(id)
+    DO UPDATE SET finished_at=excluded.finished_at,status=excluded.status,stage=excluded.stage,model=excluded.model,data=excluded.data,error=excluded.error`
+    )
+    .run(
+      id,
+      scope,
+      Date.now(),
+      status,
+      stage,
+      model,
+      JSON.stringify(data),
+      error
+    )
+  if (status !== "running")
+    db()
+      .prepare("UPDATE generation_runs SET finished_at=? WHERE id=?")
+      .run(Date.now(), id)
+  db()
+    .prepare(
+      "DELETE FROM generation_runs WHERE scope=? AND id NOT IN (SELECT id FROM generation_runs WHERE scope=? ORDER BY started_at DESC,id DESC LIMIT 10)"
+    )
+    .run(scope, scope)
+}
+export function generationInsights(scope: string) {
+  const state = pipelineState(scope)
+  const runs: GenerationRun[] = db()
+    .prepare(
+      "SELECT * FROM generation_runs WHERE scope=? ORDER BY started_at DESC,id DESC LIMIT 10"
+    )
+    .all(scope)
+    .map((row) => ({
+      id: String(row.id),
+      startedAt: Number(row.started_at),
+      finishedAt: row.finished_at === null ? null : Number(row.finished_at),
+      status:
+        row.status === "running" &&
+        (state?.lease !== row.id ||
+          Number(state?.lease_until ?? 0) <= Date.now())
+          ? "interrupted"
+          : (row.status as GenerationRun["status"]),
+      stage: String(row.stage),
+      model: row.model === null ? null : String(row.model),
+      error: row.error === null ? null : String(row.error),
+      data: JSON.parse(String(row.data)),
+    }))
+  const stats = db()
+    .prepare(
+      `SELECT COUNT(*) AS total,
+    SUM(CASE WHEN kind='post' THEN 1 ELSE 0 END) AS posts,
+    SUM(CASE WHEN kind='reel' THEN 1 ELSE 0 END) AS reels,
+    SUM(CASE WHEN seen_at IS NULL THEN 1 ELSE 0 END) AS unseen FROM content WHERE scope=?`
+    )
+    .get(scope)
+  return {
+    settings: getGenerationSettings(),
+    runs,
+    topics: topics(scope),
+    feedback: generationFeedback(scope),
+    stats: {
+      posts: Number(stats?.posts ?? 0),
+      reels: Number(stats?.reels ?? 0),
+      unseen: Number(stats?.unseen ?? 0),
+      topics: Number(
+        db()
+          .prepare("SELECT COUNT(*) AS count FROM topics WHERE scope=?")
+          .get(scope)?.count ?? 0
+      ),
+      likes: Number(
+        db()
+          .prepare(
+            "SELECT COUNT(*) AS count FROM post_likes l JOIN content c ON c.id=l.content_id WHERE c.scope=?"
+          )
+          .get(scope)?.count ?? 0
+      ),
+      comments: Number(
+        db()
+          .prepare(
+            "SELECT COUNT(*) AS count FROM post_comments p JOIN content c ON c.id=p.content_id WHERE c.scope=?"
+          )
+          .get(scope)?.count ?? 0
+      ),
+    },
+    running: Number(state?.lease_until ?? 0) > Date.now(),
+    checkedAt: Number(state?.checked_at ?? 0),
+    retryAt: Number(state?.retry_at ?? 0),
+    error: state?.error ? String(state.error) : null,
+  }
 }
 export function topics(scope: string): Topic[] {
   return db()
@@ -139,13 +264,11 @@ export function postFeedback(scope: string, id: string): PostFeedback | null {
         )
         .get(id)?.count ?? 0
     ),
-    comments: rows
-      .reverse()
-      .map((row) => ({
-        id: String(row.id),
-        body: String(row.body),
-        createdAt: Number(row.created_at),
-      })),
+    comments: rows.reverse().map((row) => ({
+      id: String(row.id),
+      body: String(row.body),
+      createdAt: Number(row.created_at),
+    })),
   }
 }
 export function setPostLike(scope: string, id: string, liked: boolean) {

@@ -23,6 +23,9 @@ import {
   serverKey,
 } from "@/lib/browser-settings"
 import { projectLabel } from "@/lib/project-profile"
+import { GenerationSettings } from "@/components/social/generation-settings"
+import { getGenerationModels } from "@/lib/generation-models"
+import { getGenerationSettings } from "@/lib/local-database"
 
 export const metadata: Metadata = { title: "Account" }
 
@@ -42,6 +45,15 @@ export default async function ProfilePage({
   const isGlobal = project?.id === GLOBAL_PROJECT_ID
   const name = projectLabel(project)
   const namespace = serverKey(connection.baseUrl)
+  const generationSettings = getGenerationSettings()
+  let modelError: string | undefined
+  const generationModels = project
+    ? await getGenerationModels(project.id).catch(() => {
+        modelError =
+          "Could not load generation models. Check the OpenCode connection."
+        return []
+      })
+    : []
 
   return (
     <section>
@@ -147,6 +159,32 @@ export default async function ProfilePage({
             />
           </section>
         )}
+
+        <section
+          id="generation-settings"
+          aria-labelledby="generation-settings-heading"
+          className="scroll-mt-4 space-y-4 rounded-2xl border p-4"
+        >
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <h2 id="generation-settings-heading" className="font-semibold">
+                Content generation
+              </h2>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Posts, reels, and learning topics
+              </p>
+            </div>
+            <span className="shrink-0 rounded-full bg-muted px-2 py-1 text-[10px] font-medium">
+              App-wide
+            </span>
+          </div>
+          <GenerationSettings
+            initial={generationSettings}
+            models={generationModels}
+            projectID={project?.id}
+            modelError={modelError}
+          />
+        </section>
 
         <section
           id="app-settings"

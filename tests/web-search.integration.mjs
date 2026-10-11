@@ -46,7 +46,7 @@ const mock = createServer(async (request, response) => {
   }
   if (request.url === "/v2/extract") {
     extractions++
-    assert.deepEqual(body.formats, ["screenshot", "markdown"])
+    assert.ok(body.formats.includes("markdown"))
     assert.equal(body.render, true)
     if (body.url.includes("failure")) {
       response.statusCode = 503
@@ -165,6 +165,33 @@ try {
     "Repeated visits must not duplicate cards"
   )
   assert.equal(extractions, 2)
+  const native = await (
+    await first("/api/browser", {
+      url: "https://native.example/",
+      title: "Native site",
+      recordOnly: true,
+    })
+  ).json()
+  assert.equal(extractions, 2, "Native visits must not trigger paid extraction")
+  assert.equal(native.visits[0].hasSnapshot, false)
+  const savedNative = await (
+    await first("/api/browser", {
+      url: "https://native.example/",
+      title: "Native site",
+      screenshot: png,
+    })
+  ).json()
+  assert.equal(savedNative.visits[0].hasSnapshot, true)
+  assert.equal(
+    extractions,
+    2,
+    "Native screenshots must be stored without Nimble"
+  )
+  await first(
+    "/api/browser",
+    { url: "https://native.example/", screenshot: "invalid" },
+    400
+  )
   for (const url of [
     "javascript:alert(1)",
     "http://127.0.0.1/",
@@ -183,7 +210,7 @@ try {
   ).json()
   assert.equal(
     failed.visits.length,
-    2,
+    3,
     "Capture failure must preserve the visit"
   )
   assert.ok(failed.snapshotError)

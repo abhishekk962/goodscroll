@@ -44,6 +44,7 @@ function ProjectFeed({
   const [error, setError] = useState<string | null>(null)
   const [topicCount, setTopicCount] = useState(0)
   const [loaded, setLoaded] = useState(false)
+  const [generationEnabled, setGenerationEnabled] = useState(true)
   const endpoint = `/api/feed${project ? `?project=${encodeURIComponent(project)}` : ""}`
   const busy = useRef(false)
   const alive = useRef(true)
@@ -75,6 +76,7 @@ function ProjectFeed({
         setError(result.error)
         setTopicCount(result.topics.length)
         setLoaded(true)
+        setGenerationEnabled(result.generationEnabled)
         return true
       } catch (cause) {
         if (alive.current) {
@@ -142,13 +144,21 @@ function ProjectFeed({
           </p>
         )}
         {error && <p role="alert">{error}</p>}
+        {loaded && !generationEnabled && (
+          <p>
+            Content generation is paused. Resume it in Profile → Content
+            generation settings.
+          </p>
+        )}
         {loaded && !running && !error && !visible.length && (
           <p>
             {contentID
               ? "This reel is unavailable or already seen."
               : topicCount
                 ? "You’re caught up. Fresh content will appear here automatically."
-                : "Start a conversation in this project. Its topics will become your learning feed."}
+                : generationEnabled
+                  ? "Start a conversation in this project. Its topics will become your learning feed."
+                  : "No stored content yet."}
           </p>
         )}
         {error && (

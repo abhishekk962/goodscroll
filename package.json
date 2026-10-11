@@ -7,6 +7,9 @@
     "node": ">=22.13.0"
   },
   "scripts": {
+    "desktop": "pnpm build && node desktop/run.mjs",
+    "desktop:dev": "node desktop/run.mjs --dev",
+    "test:desktop": "electron tests/desktop-browser.smoke.mjs",
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
@@ -43,6 +46,7 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "electron": "^44.7.0",
     "eslint": "^9",
     "eslint-config-next": "16.4.0",
     "prettier": "^3.9.9",
