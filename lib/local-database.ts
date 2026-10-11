@@ -50,6 +50,9 @@ export function db() {
       id TEXT PRIMARY KEY, content_id TEXT NOT NULL REFERENCES content(id) ON DELETE CASCADE,
       body TEXT NOT NULL, created_at INTEGER NOT NULL);
     CREATE INDEX IF NOT EXISTS comments_content ON post_comments(content_id, created_at);
+    CREATE TABLE IF NOT EXISTS saved_content (
+      content_id TEXT PRIMARY KEY REFERENCES content(id) ON DELETE CASCADE,
+      created_at INTEGER NOT NULL);
     CREATE TABLE IF NOT EXISTS generation_settings (id INTEGER PRIMARY KEY CHECK(id=1), settings TEXT NOT NULL);
     CREATE TABLE IF NOT EXISTS generation_runs (
       id TEXT PRIMARY KEY, scope TEXT NOT NULL, started_at INTEGER NOT NULL, finished_at INTEGER,
@@ -225,8 +228,8 @@ export function content(scope: string, history = false): FeedContent[] {
   return db()
     .prepare(
       history
-        ? "SELECT * FROM content WHERE scope=? AND seen_at IS NOT NULL ORDER BY seen_at DESC, id LIMIT 20"
-        : "SELECT * FROM content WHERE scope=? AND seen_at IS NULL ORDER BY created_at, id LIMIT 100"
+        ? "SELECT *, EXISTS(SELECT 1 FROM saved_content WHERE content_id=content.id) AS saved FROM content WHERE scope=? AND seen_at IS NOT NULL ORDER BY seen_at DESC, id LIMIT 20"
+        : "SELECT *, EXISTS(SELECT 1 FROM saved_content WHERE content_id=content.id) AS saved FROM content WHERE scope=? AND seen_at IS NULL ORDER BY created_at, id LIMIT 100"
     )
     .all(scope)
     .map((row) => ({
@@ -237,7 +240,39 @@ export function content(scope: string, history = false): FeedContent[] {
       body: String(row.body),
       slides: JSON.parse(String(row.slides)),
       seenAt: row.seen_at as number | null,
+      saved: Boolean(row.saved),
     }))
+}
+export function savedContent(scope: string): FeedContent[] {
+  return db()
+    .prepare(
+      "SELECT c.* FROM content c JOIN saved_content s ON s.content_id=c.id WHERE c.scope=? ORDER BY s.created_at DESC,c.id"
+    )
+    .all(scope)
+    .map((row) => ({
+      id: String(row.id),
+      topicID: String(row.topic_id),
+      kind: row.kind as FeedContent["kind"],
+      title: String(row.title),
+      body: String(row.body),
+      slides: JSON.parse(String(row.slides)),
+      seenAt: row.seen_at as number | null,
+      saved: true,
+    }))
+}
+export function setContentSaved(scope: string, id: string, saved: boolean) {
+  if (
+    !db()
+      .prepare("SELECT id FROM content WHERE scope=? AND id=?")
+      .get(scope, id)
+  )
+    return null
+  if (saved)
+    db()
+      .prepare("INSERT OR IGNORE INTO saved_content VALUES(?,?)")
+      .run(id, Date.now())
+  else db().prepare("DELETE FROM saved_content WHERE content_id=?").run(id)
+  return { saved }
 }
 export function postFeedback(scope: string, id: string): PostFeedback | null {
   if (

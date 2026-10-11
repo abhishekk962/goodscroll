@@ -370,6 +370,72 @@ test(
       })
       assert.equal(rejected.status, 403)
       const posts = alpha.items.filter((item) => item.kind === "post")
+      const reel = alpha.items.find((item) => item.kind === "reel")
+      const savedRequest = async (project, body, origin = base) => {
+        const response = await fetch(`${base}/api/saved?project=${project}`, {
+          method: body === undefined ? "GET" : "PUT",
+          headers: { Origin: origin, "Content-Type": "application/json" },
+          ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+        })
+        return { status: response.status, data: await response.json() }
+      }
+      assert.deepEqual((await savedRequest("alpha")).data.items, [])
+      for (const item of [posts[0], reel]) {
+        for (let attempt = 0; attempt < 2; attempt++) {
+          const result = await savedRequest("alpha", {
+            id: item.id,
+            saved: true,
+          })
+          assert.equal(result.status, 200)
+          assert.equal(result.data.saved, true)
+        }
+      }
+      assert.equal(
+        (await savedRequest("alpha")).data.items.length,
+        2,
+        "saving is idempotent"
+      )
+      assert.deepEqual(
+        (await savedRequest("beta")).data.items,
+        [],
+        "saves are project scoped"
+      )
+      assert.equal(
+        (await savedRequest("beta", { id: posts[0].id, saved: false })).status,
+        404
+      )
+      assert.equal(
+        (await savedRequest("alpha", { id: "missing", saved: true })).status,
+        404
+      )
+      for (const invalid of [
+        null,
+        [],
+        { id: posts[0].id },
+        { id: posts[0].id, saved: "true" },
+      ])
+        assert.equal((await savedRequest("alpha", invalid)).status, 400)
+      assert.equal(
+        (
+          await savedRequest(
+            "alpha",
+            { id: posts[0].id, saved: false },
+            "http://evil.example"
+          )
+        ).status,
+        403
+      )
+      assert.equal(
+        (await request("alpha")).data.items.find((item) => item.id === reel.id)
+          .saved,
+        true
+      )
+      await savedRequest("alpha", { id: reel.id, saved: false })
+      assert.deepEqual(
+        (await savedRequest("alpha")).data.items.map((item) => item.id),
+        [posts[0].id]
+      )
+      await savedRequest("alpha", { id: reel.id, saved: true })
       const configured = {
         ...defaults,
         model: "mock/editor",
@@ -654,6 +720,21 @@ test(
         database
           .prepare("SELECT settings FROM generation_settings WHERE id=1")
           .get().settings
+      )
+      const savedAfterSeen = (await savedRequest("alpha")).data.items
+      assert.equal(
+        savedAfterSeen.length,
+        2,
+        "viewed items remain in Saved after replenishment"
+      )
+      assert.ok(
+        savedAfterSeen.every((item) => item.saved && item.seenAt !== null)
+      )
+      assert.equal(
+        database.prepare("SELECT COUNT(*) AS count FROM saved_content").get()
+          .count,
+        2,
+        "saves persist in SQLite"
       )
       assert.equal(persisted.model, "mock/editor")
       assert.equal(persisted.useFeedback, false)

@@ -11,6 +11,7 @@ import {
 } from "lucide-react"
 import type { FeedContent, FeedState } from "@/lib/content-types"
 import { PostFeedback } from "@/components/social/post-feedback"
+import { SaveButton } from "@/components/social/save-button"
 
 export function GeneratedFeed({
   kind,
@@ -121,7 +122,7 @@ function ProjectFeed({
         <header className="sticky top-0 z-20 border-b bg-background/95 px-5 py-4 backdrop-blur-xl">
           <h1 className="text-xl font-semibold">goodscroll.</h1>
           <p className="text-xs text-muted-foreground">
-            Learning from this project · {topicCount} topics
+            {topicCount} project topics
           </p>
         </header>
       )}
@@ -140,25 +141,22 @@ function ProjectFeed({
         {running && (
           <p className="flex items-center gap-2">
             <LoaderCircle className="size-4 animate-spin" />
-            Creating fresh topics, posts and reels…
+            Generating content…
           </p>
         )}
         {error && <p role="alert">{error}</p>}
         {loaded && !generationEnabled && (
-          <p>
-            Content generation is paused. Resume it in Profile → Content
-            generation settings.
-          </p>
+          <p>Generation paused. Resume in Profile → Content generation.</p>
         )}
         {loaded && !running && !error && !visible.length && (
           <p>
             {contentID
               ? "This reel is unavailable or already seen."
               : topicCount
-                ? "You’re caught up. Fresh content will appear here automatically."
+                ? "You’re caught up. New content appears automatically."
                 : generationEnabled
-                  ? "Start a conversation in this project. Its topics will become your learning feed."
-                  : "No stored content yet."}
+                  ? "Start a project chat to build your feed."
+                  : "No content yet."}
           </p>
         )}
         {error && (
@@ -173,14 +171,16 @@ function ProjectFeed({
     </section>
   )
 }
-function GeneratedCard({
+export function GeneratedCard({
   item,
   project,
   onSeen,
+  onSavedChange,
 }: {
   item: FeedContent
   project: string
-  onSeen: (id: string) => Promise<boolean>
+  onSeen?: (id: string) => Promise<boolean>
+  onSavedChange?: (id: string, saved: boolean) => void
 }) {
   const element = useRef<HTMLElement>(null)
   const acknowledged = useRef(item.seenAt !== null)
@@ -197,7 +197,7 @@ function GeneratedCard({
       clearTimeout(timer)
       const watching = visible && document.visibilityState === "visible"
       setActive(watching)
-      if (watching && !acknowledged.current && !sending.current)
+      if (watching && onSeen && !acknowledged.current && !sending.current)
         timer = setTimeout(
           async () => {
             sending.current = true
@@ -243,9 +243,7 @@ function GeneratedCard({
         className="relative flex h-full min-h-[420px] snap-start flex-col justify-between bg-gradient-to-br from-indigo-950 via-slate-900 to-teal-950 p-7 text-white"
       >
         <div>
-          <p className="text-xs tracking-widest text-white/60">
-            PROJECT REEL · AI GENERATED
-          </p>
+          <p className="text-xs tracking-widest text-white/60">AI GENERATED</p>
           <h2 className="mt-3 text-xl font-semibold">{item.title}</h2>
         </div>
         <div aria-live="off" className="py-8">
@@ -272,6 +270,11 @@ function GeneratedCard({
             <p className="text-sm text-white/70">
               {slide + 1} / {item.slides.length}
             </p>
+            <SaveButton
+              item={item}
+              project={project}
+              onSavedChange={onSavedChange}
+            />
             <button
               onClick={() => setPaused((value) => !value)}
               aria-label={paused ? "Play reel" : "Pause reel"}
@@ -312,7 +315,7 @@ function GeneratedCard({
         <div>
           <p className="text-sm font-semibold">goodscroll</p>
           <p className="text-xs text-muted-foreground">
-            From your project · AI generated
+            AI generated
           </p>
         </div>
       </header>
@@ -378,7 +381,18 @@ function GeneratedCard({
         <span className="mr-2 font-semibold">goodscroll</span>
         {item.body}
       </p>
-      <PostFeedback id={item.id} project={project} />
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0 flex-1">
+          <PostFeedback id={item.id} project={project} />
+        </div>
+        <div className="pr-5">
+          <SaveButton
+            item={item}
+            project={project}
+            onSavedChange={onSavedChange}
+          />
+        </div>
+      </div>
     </article>
   )
 }

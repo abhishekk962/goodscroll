@@ -29,7 +29,10 @@ async function run() {
   })
   await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve))
   const origin = `http://localhost:${server.address().port}`
-  process.env.GOODSCROLL_APP_URL = `${origin}/search`
+  const realApp = process.argv
+    .find((value) => value.startsWith("--app="))
+    ?.slice(6)
+  process.env.GOODSCROLL_APP_URL = realApp ?? `${origin}/search`
   const website = `http://fixture.goodscroll.test:${server.address().port}`
   let window
   let browser
@@ -50,14 +53,38 @@ async function run() {
       await invoke("typeof window.goodscrollBrowser.open"),
       "function"
     )
+    if (realApp) {
+      await invoke(
+        `fetch('/api/browser', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({url:${JSON.stringify(`${website}/first`)},title:'Native fixture visit',recordOnly:true})}).then(r=>{if(!r.ok)throw new Error('History fixture failed'); return true})`
+      )
+      const loaded = new Promise((resolve) =>
+        window.webContents.once("did-finish-load", resolve)
+      )
+      window.webContents.reload()
+      await loaded
+      await until(() =>
+        invoke(
+          `Array.from(document.querySelectorAll('button')).some(b => b.textContent.includes('Native fixture visit'))`
+        )
+      )
+    }
     await invoke(
       "window.snapshots=[]; window.goodscrollBrowser.onSnapshot(s => window.snapshots.push(s)); undefined"
     )
     await invoke(
       `window.goodscrollBrowser.layout({x:20,y:100,width:480,height:600},true)`
     )
-    await invoke(
-      `window.goodscrollBrowser.open(${JSON.stringify(`${website}/first`)})`
+    if (realApp)
+      await window.webContents.executeJavaScript(
+        `Array.from(document.querySelectorAll('button')).find(b => b.textContent.includes('Native fixture visit')).click()`,
+        true
+      )
+    else
+      await invoke(
+        `window.goodscrollBrowser.open(${JSON.stringify(`${website}/first`)})`
+      )
+    await until(
+      () => browser.state().url.endsWith("/first") && !browser.state().loading
     )
     assert.equal(browser.state().error, null)
     assert.equal(browser.state().title, "First page")
@@ -81,8 +108,20 @@ async function run() {
     const snapshot = await invoke("window.snapshots[0]")
     assert.equal(snapshot.url, `${website}/first`)
     assert.ok(snapshot.screenshot.startsWith("iVBOR"))
+    if (realApp) {
+      await until(() =>
+        invoke(
+          `fetch('/api/browser').then(r=>r.json()).then(d=>d.visits.some(v=>v.url===${JSON.stringify(`${website}/first`)} && v.hasSnapshot))`
+        )
+      )
+      assert.ok(
+        browser.view.getBounds().height > 200,
+        "React must position the native browser view"
+      )
+    }
     await browser.view.webContents.executeJavaScript(
-      'document.querySelector("#next").click()', true
+      'document.querySelector("#next").click()',
+      true
     )
     await until(
       () => browser.state().url.endsWith("/second") && !browser.state().loading

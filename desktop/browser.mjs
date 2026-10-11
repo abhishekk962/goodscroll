@@ -122,7 +122,9 @@ export class SiteBrowser {
       this.emit()
       const sequence = this.sequence
       // Let Chromium paint before taking the history preview.
-      setTimeout(() => { if (sequence === this.sequence) void this.snapshot() }, 350)
+      setTimeout(() => {
+        if (sequence === this.sequence) void this.snapshot()
+      }, 350)
     })
     contents.on("did-navigate-in-page", (_event, _url, mainFrame) => {
       if (mainFrame) {
@@ -183,10 +185,13 @@ export class SiteBrowser {
     const sequence = this.sequence
     try {
       const bounds = this.view.getBounds()
-      const image = await contents.capturePage({ x: 0, y: 0, width: bounds.width, height: bounds.height }, {
-        stayHidden: true,
-        stayAwake: true,
-      })
+      const image = await contents.capturePage(
+        { x: 0, y: 0, width: bounds.width, height: bounds.height },
+        {
+          stayHidden: true,
+          stayAwake: true,
+        }
+      )
       if (
         this.view?.webContents !== contents ||
         contents.isDestroyed() ||

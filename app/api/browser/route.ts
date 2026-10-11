@@ -65,7 +65,7 @@ export async function POST(request: Request) {
   }
   const user = await owner()
   const title =
-    typeof body.title === "string"
+    typeof body.title === "string" && body.title.trim()
       ? body.title.slice(0, 300)
       : new URL(url).hostname
   const suppliedSnapshot =

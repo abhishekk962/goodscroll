@@ -68,7 +68,7 @@ export function SearchBrowser() {
     historyReady.current = fetch("/api/browser")
       .then(json)
       .then((data) => setVisits(data.visits))
-      .catch(() => setError("Recent sites could not load."))
+      .catch(() => setError("Could not load recent sites."))
     return () => {
       searchRequest.current?.abort()
       visitRequest.current = -1
@@ -118,9 +118,7 @@ export function SearchBrowser() {
           }).then(json)
           setVisits(data.visits)
         } catch {
-          setPreviewError(
-            "The page opened, but its preview could not be saved."
-          )
+          setPreviewError("Could not save preview.")
         }
       })()
     })
@@ -167,7 +165,7 @@ export function SearchBrowser() {
     if (native)
       void native
         .open(page.url)
-        .catch(() => setPreviewError("This page could not open. Try Reader."))
+        .catch(() => setPreviewError("Could not open page. Try Reader."))
     void capture(page, false, Boolean(native))
   }
 
@@ -180,12 +178,13 @@ export function SearchBrowser() {
     void capture(page)
   }
 
-  function close() {
+  async function close() {
+    // Capture while the native view still has a visible display surface.
+    if (native) await native.command("close").catch(() => {})
     visitRequest.current++
     setTrail([])
     setPosition(-1)
     setCapturing(false)
-    if (native) void native.command("close").catch(() => {})
     void fetch("/api/browser")
       .then(json)
       .then((data) => setVisits(data.visits))
@@ -226,7 +225,7 @@ export function SearchBrowser() {
       )
       open({ url, title: new URL(url).hostname })
     } catch {
-      setPreviewError("Enter a website address, such as example.com.")
+      setPreviewError("Enter a URL, e.g. example.com.")
     }
   }
 
@@ -235,9 +234,7 @@ export function SearchBrowser() {
       <div className="px-5 pt-8 pb-5">
         <div className="mb-5 flex items-center gap-2">
           <Globe className="size-5" />
-          <h1 className="text-xl font-semibold tracking-tight">
-            Explore the web
-          </h1>
+          <h1 className="text-xl font-semibold tracking-tight">Search</h1>
         </div>
         <form onSubmit={submit} className="flex gap-2">
           <div className="relative min-w-0 flex-1">
@@ -247,7 +244,7 @@ export function SearchBrowser() {
             />
             <Input
               aria-label="Search the web"
-              placeholder="Search anything on the web"
+              placeholder="Search the web"
               type="search"
               maxLength={500}
               value={query}
@@ -264,9 +261,6 @@ export function SearchBrowser() {
             <Search className="size-4" />
           </Button>
         </form>
-        <p className="mt-2 text-xs text-muted-foreground">
-          Search with Nimble. Browse right here.
-        </p>
       </div>
 
       {active ? (
@@ -315,7 +309,7 @@ export function SearchBrowser() {
             <Button
               variant="ghost"
               size="icon"
-              aria-label="Refresh page and snapshot"
+              aria-label="Refresh page"
               disabled={capturing}
               onClick={() => {
                 if (native && !reader) void native.command("reload")
@@ -339,6 +333,9 @@ export function SearchBrowser() {
                 size="sm"
                 variant={reader ? "ghost" : "secondary"}
                 disabled={!native}
+                title={
+                  !native ? "Live browsing requires the desktop app" : undefined
+                }
                 onClick={() => setReader(false)}
               >
                 Live page
@@ -370,7 +367,7 @@ export function SearchBrowser() {
               rel="noopener noreferrer"
               className="flex items-center gap-1 text-muted-foreground"
             >
-              Open outside <ExternalLink className="size-3" />
+              Open in browser <ExternalLink className="size-3" />
             </a>
           </div>
           {(previewError || (!reader && nativeState?.error)) && (
@@ -390,7 +387,7 @@ export function SearchBrowser() {
                   className="flex items-center gap-2 text-sm text-muted-foreground"
                 >
                   <LoaderCircle className="size-4 animate-spin" />
-                  Fetching page content…
+                  Loading page…
                 </p>
               ) : (
                 <Streamdown
@@ -407,9 +404,7 @@ export function SearchBrowser() {
                             )
                             open({ url, title: new URL(url).hostname })
                           } catch {
-                            setPreviewError(
-                              "This link is not a public website address."
-                            )
+                            setPreviewError("This link requires a public URL.")
                           }
                         }}
                       >
@@ -419,19 +414,13 @@ export function SearchBrowser() {
                   }}
                 >
                   {markdown ||
-                    "Reader content is unavailable for this page. Try refreshing or opening the live page."}
+                    "Reader unavailable. Refresh or open the live page."}
                 </Streamdown>
               )}
             </article>
           ) : native ? (
             <NativePage browser={native} />
           ) : null}
-          {!native && (
-            <p className="border-t px-3 py-2 text-xs text-muted-foreground">
-              Reader view in the web app. Use the Goodscroll desktop app to
-              browse the original site here.
-            </p>
-          )}
         </div>
       ) : null}
 
@@ -439,7 +428,7 @@ export function SearchBrowser() {
         {searching && (
           <p className="flex items-center gap-2 py-5 text-sm text-muted-foreground">
             <LoaderCircle className="size-4 animate-spin" />
-            Searching the web…
+            Searching…
           </p>
         )}
         {error && (
@@ -447,11 +436,9 @@ export function SearchBrowser() {
             {error}
           </p>
         )}
-        {searched && !searching && !error && (
+        {searched && !searching && !error && !results.length && (
           <p className="mb-4 text-xs text-muted-foreground">
-            {results.length
-              ? `Results for “${searched}”`
-              : `No results for “${searched}”. Try another search.`}
+            No results for “{searched}”.
           </p>
         )}
       </div>
@@ -472,7 +459,7 @@ export function SearchBrowser() {
               <h2 className="text-base font-medium text-primary group-hover:underline">
                 {result.title || result.url}
               </h2>
-              <p className="mt-1 line-clamp-3 text-sm leading-6 text-muted-foreground">
+              <p className="mt-1 line-clamp-2 text-sm leading-6 text-muted-foreground">
                 {result.description}
               </p>
             </button>
@@ -480,10 +467,7 @@ export function SearchBrowser() {
         </div>
       )}
       <div className="flex items-center justify-between border-t px-5 pt-5 pb-3">
-        <h2 className="text-sm font-medium">Recently visited</h2>
-        <span className="text-xs text-muted-foreground">
-          {visits.length} sites
-        </span>
+        <h2 className="text-sm font-medium">Recent sites</h2>
       </div>
       {visits.length ? (
         <div className="grid grid-cols-2 gap-3 px-5 pb-6">
@@ -505,9 +489,12 @@ export function SearchBrowser() {
                     className="h-full w-full object-cover object-top"
                   />
                 ) : (
-                  <div className="flex h-full flex-col items-center justify-center gap-2 text-muted-foreground">
+                  <div
+                    className="flex h-full items-center justify-center text-muted-foreground"
+                    role="img"
+                    aria-label="Preview unavailable"
+                  >
                     <Globe className="size-7" />
-                    <span className="text-xs">Preview unavailable</span>
                   </div>
                 )}
               </div>
@@ -523,8 +510,7 @@ export function SearchBrowser() {
       ) : (
         <div className="px-5 py-10 text-center text-sm text-muted-foreground">
           <Globe className="mx-auto mb-3 size-8 opacity-40" />
-          <p>Your web discoveries will live here.</p>
-          <p className="mt-1 text-xs">Open a result to save a page preview.</p>
+          <p>Sites you visit appear here.</p>
         </div>
       )}
     </section>

@@ -1,0 +1,42 @@
+{
+  "event_slug": "ai-engineer-nyc-2026",
+  "submit": false,
+  "project": {
+    "name": "Goodscroll",
+    "short_description": "Turn your coding conversations into a personalized learning feed of bite-sized carousel posts and reels.",
+    "description": "Goodscroll turns everyday coding work into a personalized learning feed. It connects to an OpenCode server, extracts learning topics from recent project conversations, and uses a second content agent to turn those topics into educational carousel posts and animated text reels.\n\nEach project keeps its own topics, content, likes, comments, and saved items in a local SQLite database. Likes and comments can guide future lessons, while controls let users choose a connected text-generation model, learning depth, conversation source window, and whether personalization is enabled. Generation insights show source conversations, pipeline status, model selection, and recent run inputs and results.\n\nGoodscroll also includes live web search powered by Nimble Search and a browser reader powered by Nimble Extract. Its Electron desktop shell opens results in a dedicated Chromium browser view and stores recent visits and page previews locally.\n\nBuilt with Next.js, React, TypeScript, Tailwind CSS, shadcn/ui, Node.js SQLite, the OpenCode SDK, the Nimble JavaScript SDK, and Electron. AI generation runs through the model provider configured in OpenCode; the repository does not hard-code a particular AI provider.",
+    "built_with": [
+      "nextjs",
+      "react",
+      "typescript",
+      "tailwindcss",
+      "shadcn/ui",
+      "nodejs",
+      "sqlite",
+      "opencode",
+      "nimble",
+      "electron"
+    ],
+    "ai_tools": [
+      "codex",
+      "coding:unknown"
+    ]
+  },
+  "category_answers": {
+    "Best Use of Nimble": "Goodscroll uses Nimble Search to fetch live web results and Nimble Extract to render pages into readable Markdown and screenshot previews. These APIs power the web search and Reader experience, with recent visits and cached previews stored locally in SQLite.",
+    "Best Overall": "Goodscroll turns coding conversations into a personalized learning feed of educational carousels and animated text reels. It combines AI topic extraction and content generation with feedback-driven personalization, saved lessons, project isolation, and integrated web research."
+  },
+  "skipped_categories": {
+    "Best Use of Gemini API": "Pending confirmation of the model provider used through OpenCode.",
+    "Best Use of Tiger Data": "No integration found; the project uses local SQLite.",
+    "Best Use of Snowflake": "No integration found.",
+    "Best Use of Sentry (and Raffle)": "No Sentry integration found; raffle eligibility must be checked against event requirements."
+  },
+  "missing": [
+    "GitHub repository URL",
+    "Live demo URL, if any",
+    "Demo video URL, if any",
+    "Extra links, if any",
+    "Runtime AI provider and model"
+  ]
+}

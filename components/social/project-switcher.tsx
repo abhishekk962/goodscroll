@@ -89,8 +89,7 @@ export function ProjectSwitcher({
       </ul>
       {!projects.length && (
         <p className="px-3 py-4 text-sm text-muted-foreground">
-          No projects available. Connect your server below, then add a
-          repository folder.
+          Connect your server below, then add a project.
         </p>
       )}
       {error && (

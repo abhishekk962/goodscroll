@@ -76,7 +76,7 @@ export function GenerationSettings({
             }
             className="size-4 accent-primary"
           />
-          Generate new content automatically
+          Auto-generate content
         </label>
         <div className="space-y-2">
           <label htmlFor="generation-model" className="text-sm font-medium">
@@ -90,11 +90,9 @@ export function GenerationSettings({
             }
             className={selectClass}
           >
-            <option value="">Automatic · available text model</option>
+            <option value="">Automatic</option>
             {unavailable && (
-              <option value={form.model!}>
-                {form.model} (unavailable on this connection)
-              </option>
+              <option value={form.model!}>{form.model} (unavailable)</option>
             )}
             {[...new Set(models.map((model) => model.provider))].map(
               (provider) => (
@@ -111,9 +109,7 @@ export function GenerationSettings({
             )}
           </select>
           <p className="text-xs leading-relaxed text-muted-foreground">
-            Used for topic extraction, posts, and reels across all projects.
-            Automatic prefers a text model from recent conversations, then a
-            connected provider default.
+            Automatic uses a recent chat’s text model or a provider default.
           </p>
           {modelError && (
             <p role="alert" className="text-xs text-destructive">
@@ -122,8 +118,7 @@ export function GenerationSettings({
           )}
           {unavailable && (
             <p className="text-xs text-destructive">
-              Generation will report an error until this model is available. You
-              can choose Automatic or another model.
+              Model unavailable. Choose Automatic or another model to generate.
             </p>
           )}
         </div>
@@ -153,7 +148,7 @@ export function GenerationSettings({
         </div>
         <div className="space-y-2">
           <label htmlFor="generation-sources" className="text-sm font-medium">
-            Recent source conversations
+            Source conversations
           </label>
           <input
             id="generation-sources"
@@ -168,8 +163,7 @@ export function GenerationSettings({
             className={selectClass}
           />
           <p className="text-xs text-muted-foreground">
-            Use the latest 1–12 root conversations in each project. Existing
-            topics remain available when you reduce this window.
+            Latest 1–12 top-level chats per project. Existing topics are kept.
           </p>
         </div>
         <label className="flex items-start gap-2 text-sm">
@@ -184,14 +178,12 @@ export function GenerationSettings({
           <span>
             Personalize with likes and comments
             <span className="mt-1 block text-xs leading-relaxed text-muted-foreground">
-              Turning this off keeps your feedback saved and excludes it from
-              new generation inputs.
+              When off, feedback stays saved but isn’t used for generation.
             </span>
           </span>
         </label>
         <Button type="submit" className="h-10 w-full">
-          {busy && <LoaderCircle className="animate-spin" />}Save generation
-          settings
+          {busy && <LoaderCircle className="animate-spin" />}Save settings
         </Button>
         <Button
           type="button"
@@ -199,7 +191,7 @@ export function GenerationSettings({
           className="h-auto px-0 text-xs text-muted-foreground"
           onClick={() => void save(true)}
         >
-          Restore generation defaults
+          Restore defaults
         </Button>
       </fieldset>
       {feedback && (
@@ -211,15 +203,14 @@ export function GenerationSettings({
         </p>
       )}
       <p className="text-xs leading-relaxed text-muted-foreground">
-        Saved in Goodscroll’s database for every project and browser using this
-        installation. Applies to the next run; an active run can finish with its
-        original settings. Existing posts stay available.
+        Applies across this installation from the next run. Existing content is
+        kept.
       </p>
       <Link
         href={`/generation${query}`}
         className="flex items-center justify-between rounded-xl border p-3 text-sm font-medium"
       >
-        Content generation insights
+        Generation insights
         <ArrowUpRight className="size-4" />
       </Link>
     </form>

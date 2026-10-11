@@ -78,13 +78,12 @@ export default async function ProfilePage({
           <div className="min-w-0 flex-1 space-y-1">
             <p className="truncate font-semibold">{name}</p>
             <p className="text-xs text-muted-foreground">
-              {isGlobal ? "Your global account" : "Your project account"}
+              {isGlobal ? "Global account" : "Project account"}
             </p>
             <p className="text-xs leading-relaxed break-all text-muted-foreground">
               {isGlobal
                 ? "Chats outside repository projects"
-                : (project?.worktree ??
-                  "Connect your OpenCode server to get started.")}
+                : (project?.worktree ?? "Connect your OpenCode server.")}
             </p>
           </div>
         </div>
@@ -119,9 +118,6 @@ export default async function ProfilePage({
             <h2 id="accounts-heading" className="font-semibold">
               Switch account
             </h2>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Each project has its own folder and model preferences.
-            </p>
           </div>
           <ProjectSwitcher projects={projects} projectID={project?.id} />
           {!error && <FolderBrowser key={`add:${namespace}`} mode="add" />}
@@ -138,12 +134,9 @@ export default async function ProfilePage({
                   Project settings
                 </h2>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  Only for {name} · saved in this browser
+                  Saved in this browser
                 </p>
               </div>
-              <span className="rounded-full bg-muted px-2 py-1 text-[10px] font-medium">
-                This project
-              </span>
             </div>
             <FolderBrowser
               key={`${namespace}:${project.id}:${directory}`}
@@ -170,9 +163,6 @@ export default async function ProfilePage({
               <h2 id="generation-settings-heading" className="font-semibold">
                 Content generation
               </h2>
-              <p className="mt-1 text-xs text-muted-foreground">
-                Posts, reels, and learning topics
-              </p>
             </div>
             <span className="shrink-0 rounded-full bg-muted px-2 py-1 text-[10px] font-medium">
               App-wide
@@ -200,7 +190,7 @@ export default async function ProfilePage({
                 <Globe className="size-4" /> App settings
               </h2>
               <p className="mt-1 text-xs text-muted-foreground">
-                All projects · saved in this browser
+                Saved in this browser
               </p>
             </div>
             <span className="shrink-0 rounded-full bg-muted px-2 py-1 text-[10px] font-medium">

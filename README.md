@@ -107,26 +107,45 @@ Saved and sample profile screens still use their existing demo data.
 ## Web search and browser
 
 Search uses Nimble Search for live results. Set `NIMBLE_API_KEY` in `.env.local`
-and restart the server. The key stays on the server. Open a result to browse in
-a single sandboxed iframe, or enter a URL in its address bar. Back and forward
-move between pages opened through Goodscroll's controls. Websites that deny
-embedding can be read with the Reader tab, populated by Nimble Extract.
+and restart the server. The key stays on the server.
 
-Opening a page records it in Recently visited and captures a full-page PNG and
-Markdown through Nimble Extract. The grid displays saved images, never iframes.
+Run `pnpm desktop:dev` to open the Electron desktop app. It connects to an
+existing Goodscroll dev server on port 3000, or starts one if none is available.
+Run `pnpm desktop` to build and launch a production server plus the desktop app.
+Closing the desktop window stops any server that its launcher started. Set
+`GOODSCROLL_APP_URL=http://localhost:3000/search` to connect to a specific local
+Goodscroll server. This is a source-run desktop shell, not a packaged installer.
+
+In the desktop app, results open in one dedicated Chromium WebContentsView.
+The website is loaded as a browser page, so iframe embedding restrictions do
+not apply. Address navigation, links, redirects, back/forward, and reload are
+handled by the native browser. Remote websites run sandboxed without Node.js
+or the app's preload/IPC bridge, and use a separate persistent cookie partition.
+Website permissions, downloads, local URLs, and navigation into the app are
+blocked. Browser cookies persist in Electron's local user-data directory.
+
+In a regular web browser, results open in the Nimble-powered Reader view.
+The Live page button is available only in the desktop shell. There are no
+third-party iframes or silent blank-page fallbacks.
+
+Opening a page records it in Recently visited. Desktop navigation also tracks
+links clicked inside websites and saves actual viewport screenshots after page
+loading and on close. These previews can reflect the current login and scroll
+state and are stored locally; native screenshots are never sent to Nimble.
+Reader content and web-only previews are fetched through Nimble Extract.
+The grid displays saved images, never live browser instances.
 The most recent 50 distinct URLs are retained per browser cookie in the local
-SQLite database. Existing previews are reused; Refresh recaptures them. Search
-and snapshot capture consume Nimble API usage. Capture failures preserve history
+SQLite database. Existing reader previews are reused; Refresh recaptures them.
+Search and reader extraction consume Nimble API usage; native screenshots do not.
+Capture failures preserve history
 and do not prevent live browsing.
-
-Snapshots represent Nimble's public page capture, rather than the iframe's
-logged-in or interacted-with state. Cross-origin browser restrictions prevent
-Goodscroll from observing links clicked inside a third-party iframe; only URLs
-opened from results, recent cards, and the address bar enter Goodscroll history.
 
 Run `pnpm build` then `node tests/web-search.integration.mjs` to check search,
 history isolation, saved PNG delivery, snapshot caching, and failure handling
-against a mock Nimble service without paid API calls.
+against a mock Nimble service without paid API calls. Run `pnpm test:desktop`
+to briefly open a fixture window and test native rendering of a site with
+`X-Frame-Options: DENY`, link navigation, back/forward, screenshots, IPC isolation,
+and cleanup. It takes no focus and makes no paid API calls.
 
 Topics, content, and seen timestamps are isolated by OpenCode server URL and
 project ID. This is a local, single-user database: browsers connected to the same

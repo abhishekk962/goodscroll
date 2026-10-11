@@ -12,6 +12,7 @@ export type FeedContent = {
   body: string
   slides: string[]
   seenAt: number | null
+  saved?: boolean
 }
 export type PostComment = {
   id: string

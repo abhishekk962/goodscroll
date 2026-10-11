@@ -1,15 +1,20 @@
 import type { Metadata } from "next"
-import { MediaGrid } from "@/components/social/media-grid"
+import { SavedFeed } from "@/components/social/saved-feed"
 import { PageHeading } from "@/components/social/page-heading"
-import { savedItems } from "@/data/social"
+import {
+  getConnectionSettings,
+  selectedProjectID,
+  serverKey,
+} from "@/lib/browser-settings"
 
 export const metadata: Metadata = { title: "Saved" }
 
-export default function SavedPage() {
+export default async function SavedPage() {
+  const identity = `${serverKey((await getConnectionSettings()).baseUrl)}:${await selectedProjectID()}`
   return (
     <section>
       <PageHeading title="Saved" />
-      <MediaGrid items={savedItems} label="Saved posts and reels" />
+      <SavedFeed key={identity} />
     </section>
   )
 }

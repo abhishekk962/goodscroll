@@ -55,10 +55,7 @@ export function NewConversationButton({ project }: { project?: string }) {
         </span>
         <span className="min-w-0 flex-1">
           <span className="block truncate font-semibold">
-            Start a new conversation
-          </span>
-          <span className="mt-1 block truncate text-xs font-normal text-muted-foreground">
-            Send a message to your agent
+            New chat
           </span>
         </span>
       </Button>

@@ -104,8 +104,7 @@ export function ConnectionSettings({
             className="h-11"
           />
           <p className="text-xs leading-relaxed text-muted-foreground">
-            Used by every project in this browser. The server must be reachable
-            from Goodscroll.
+            The server must be reachable from Goodscroll.
           </p>
         </div>
         <details
@@ -113,7 +112,7 @@ export function ConnectionSettings({
           open={form.authenticated || undefined}
         >
           <summary className="cursor-pointer text-sm font-medium">
-            Advanced connection settings
+            Advanced
           </summary>
           <div className="mt-4 space-y-4">
             <label className="flex items-center gap-2 text-sm">
@@ -125,7 +124,7 @@ export function ConnectionSettings({
                 }
                 className="size-4 accent-primary"
               />{" "}
-              Use server authentication
+              Server authentication
             </label>
             {form.authenticated && (
               <>
@@ -159,14 +158,14 @@ export function ConnectionSettings({
                     }}
                     placeholder={
                       form.hasPassword
-                        ? "Saved password • enter to replace"
+                        ? "Enter to replace saved password"
                         : "Server password"
                     }
                   />
                   <p className="text-xs text-muted-foreground">
                     {form.hasPassword
-                      ? "Leave unchanged to keep the saved password. Disable authentication to remove it."
-                      : "Use the password configured on your OpenCode server."}
+                      ? "Leave blank to keep it. Disable authentication to remove it."
+                      : "Enter your OpenCode server password."}
                   </p>
                 </div>
               </>
@@ -190,8 +189,7 @@ export function ConnectionSettings({
                 }
               />
               <p className="text-xs text-muted-foreground">
-                For loading data and sending requests. Live chat streams stay
-                connected.
+                Does not limit live chat streams.
               </p>
             </div>
           </div>
@@ -224,7 +222,7 @@ export function ConnectionSettings({
           className="h-auto px-0 text-xs text-muted-foreground"
           onClick={() => void submit("save", true)}
         >
-          Restore connection defaults
+          Restore defaults
         </Button>
       </fieldset>
       {feedback && (
@@ -310,13 +308,11 @@ export function ProjectModelSettings({
         ))}
       </select>
       <p className="text-xs leading-relaxed text-muted-foreground">
-        Applies only to this project when a chat has no model override. Choose
-        “Use project default” in a chat to inherit this setting.
+        Used when a chat’s model is set to “Project default”.
       </p>
       {unavailable && (
         <p className="text-xs text-destructive">
-          The saved model is unavailable. Choose another model or use OpenCode
-          default.
+          Model unavailable. Choose another or use OpenCode default.
         </p>
       )}
       <Button
@@ -327,7 +323,7 @@ export function ProjectModelSettings({
         }
         className="h-10 w-full"
       >
-        {busy && <LoaderCircle className="animate-spin" />} Save project default
+        {busy && <LoaderCircle className="animate-spin" />} Save model
       </Button>
       {feedback && (
         <p

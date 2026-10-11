@@ -83,7 +83,7 @@ export function ModelSelector({
         className="h-64 max-h-[min(16rem,var(--available-height))] w-72 max-w-[calc(100vw-2rem)]"
       >
         <SelectItem value="__project__">
-          Use project default · {inheritedLabel}
+          Project default · {inheritedLabel}
         </SelectItem>
         {providers.map((provider) => (
           <SelectGroup key={provider}>

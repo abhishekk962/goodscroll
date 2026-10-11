@@ -118,9 +118,6 @@ export function PostFeedback({ id, project }: { id: string; project: string }) {
       </button>
       {expanded && (
         <div id={`comments-${id}`} className="space-y-3">
-          <p className="text-xs text-muted-foreground">
-            Your likes and comments help shape future posts.
-          </p>
           <div
             className="max-h-64 space-y-3 overflow-y-auto"
             aria-live="polite"

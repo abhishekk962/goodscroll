@@ -25,7 +25,7 @@ export default async function MessagesPage({
         <div role="alert" className="space-y-2 px-5 pb-5 text-sm">
           <p>{selection.error}</p>
           <Link href="/profile#app-settings" className="underline">
-            Open account settings
+            Connection settings
           </Link>
         </div>
       )}
@@ -45,7 +45,7 @@ export default async function MessagesPage({
         ))}
         {!selection.error && !conversations.length && (
           <li className="px-2 py-12 text-center text-sm text-muted-foreground">
-            No root OpenCode sessions are available in this selection.
+            No chats in this project yet.
           </li>
         )}
       </ul>

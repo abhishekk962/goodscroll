@@ -35,6 +35,8 @@ export const ready = app.whenReady().then(async () => {
     },
   })
   browser = new SiteBrowser(window, target.origin)
+  // A launcher can start without a console window; explicitly show the app.
+  if (process.env.GOODSCROLL_DESKTOP_TEST !== "1") window.show()
   const trusted = (event) =>
     event.sender === window.webContents &&
     event.senderFrame === window.webContents.mainFrame &&

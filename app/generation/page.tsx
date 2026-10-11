@@ -8,7 +8,7 @@ import { getOpenCodeSelection } from "@/lib/opencode"
 import { RefreshGenerationInsights } from "@/components/social/generation-settings"
 import type { GenerationRun } from "@/lib/generation-types"
 
-export const metadata: Metadata = { title: "Content generation insights" }
+export const metadata: Metadata = { title: "Generation insights" }
 
 function when(value: number | null) {
   return value
@@ -32,7 +32,7 @@ function RunDetails({
         </span>
       </div>
       <p className="text-xs text-muted-foreground">
-        {run.stage} · {run.model ?? "No model needed or resolved yet"}
+        {run.stage} · {run.model ?? "No model selected"}
       </p>
       {run.error && (
         <p role="alert" className="text-sm text-destructive">
@@ -41,24 +41,23 @@ function RunDetails({
       )}
       {run.status === "interrupted" && (
         <p className="text-sm text-muted-foreground">
-          This run lost its generation lease before finishing. The next feed
-          visit can retry.
+          Run interrupted. Reopen the feed to retry.
         </p>
       )}
       <p className="text-sm">
         {run.data.generatedCounts
           ? `${run.data.generatedCounts.post} posts and ${run.data.generatedCounts.reel} reels generated`
-          : "No new content saved in this run."}
+          : "No new content saved."}
       </p>
       <details>
         <summary className="cursor-pointer text-sm font-medium">
-          Source conversations checked ({run.data.sources.length})
+          Source chats ({run.data.sources.length})
         </summary>
         <div className="mt-3 space-y-4">
           <p className="text-xs text-muted-foreground">
             {run.data.topicExtraction
-              ? "These bounded message excerpts were prepared for the topic extraction attempt."
-              : "These sources were checked. Topic extraction was skipped or had not started; these excerpts were not sent to the topic agent in this run."}
+              ? "Excerpts prepared for topic extraction."
+              : "Sources checked; excerpts were not sent for topic extraction."}
           </p>
           {run.data.sources.map((source) => (
             <div key={source.id} className="space-y-2 border-t pt-3">
@@ -85,7 +84,7 @@ function RunDetails({
           ))}
           {!run.data.sources.length && (
             <p className="text-sm text-muted-foreground">
-              No eligible conversation excerpts recorded.
+              No eligible excerpts.
             </p>
           )}
         </div>
@@ -93,7 +92,7 @@ function RunDetails({
       {run.data.contentInput && (
         <details>
           <summary className="cursor-pointer text-sm font-medium">
-            Content generation input
+            Generation input
           </summary>
           <div className="mt-3 space-y-3 text-sm">
             <p>
@@ -109,9 +108,7 @@ function RunDetails({
               .
             </p>
             <p className="text-xs text-muted-foreground">
-              This is the saved input prepared for this run, including topic
-              summaries, source IDs, feedback excerpts, and titles used to avoid
-              repeats.
+              Saved topics, sources, feedback, and titles used to avoid repeats.
             </p>
             <pre className="max-h-96 overflow-auto rounded-lg bg-muted p-3 text-xs break-words whitespace-pre-wrap">
               {JSON.stringify(run.data.contentInput, null, 2)}
@@ -121,7 +118,7 @@ function RunDetails({
       )}
       <details>
         <summary className="cursor-pointer text-sm font-medium">
-          Settings for this run
+          Run settings
         </summary>
         <pre className="mt-3 overflow-auto rounded-lg bg-muted p-3 text-xs">
           {JSON.stringify(run.data.settings, null, 2)}
@@ -170,14 +167,9 @@ export default async function GenerationPage({
       </header>
       <div className="space-y-6 px-5 py-6">
         <div>
-          <p className="text-xs font-medium tracking-widest text-muted-foreground">
-            CONTENT & DATA
-          </p>
-          <h2 className="mt-2 text-2xl font-semibold">What shapes your feed</h2>
           <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-            Explore the topics, conversations, and feedback behind{" "}
-            {projectLabel(selection.project)}. Viewing this page does not start
-            generation.
+            Topics, chats, and feedback shaping{" "}
+            {projectLabel(selection.project)}.
           </p>
         </div>
         {error && (
@@ -190,7 +182,7 @@ export default async function GenerationPage({
         )}
         {!selection.project && (
           <Link href="/profile" className="text-sm underline">
-            Connect and choose a project in Profile.
+            Choose a project in Profile.
           </Link>
         )}
         {insights && (
@@ -208,13 +200,13 @@ export default async function GenerationPage({
               </h2>
               <p className="text-sm">
                 {insights.running
-                  ? "A generation run is active"
+                  ? "Generating"
                   : insights.settings.enabled
                     ? "Ready · runs on feed activity"
                     : "Paused"}
               </p>
               <p className="text-sm break-words">
-                Configured model:{" "}
+                Model:{" "}
                 <span className="font-medium">
                   {insights.settings.model ?? "Automatic text model"}
                 </span>
@@ -234,7 +226,7 @@ export default async function GenerationPage({
                 href={`/profile${query}#generation-settings`}
                 className="text-sm font-medium underline"
               >
-                Edit app-wide generation settings
+                Edit settings
               </Link>
             </section>
             <section
@@ -263,48 +255,42 @@ export default async function GenerationPage({
               </h2>
               <ul className="list-disc space-y-2 pl-4 text-sm leading-relaxed text-muted-foreground">
                 <li>
-                  Topic extraction checks up to {insights.settings.sourceLimit}{" "}
-                  recent root conversations in this project. Child and internal
-                  generation sessions are excluded.
+                  Topics use up to {insights.settings.sourceLimit} recent
+                  top-level chats. Child and generation sessions are excluded.
                 </li>
                 <li>
-                  Each source reads up to 30 recent messages and keeps up to 20
-                  nonempty excerpts, capped at 2,000 characters per message and
-                  60,000 characters total. User text and completed assistant
-                  responses are eligible.
+                  Each chat contributes up to 20 excerpts from 30 recent
+                  messages: user text and completed assistant responses. Limits:
+                  2,000 characters per message, 60,000 total.
                 </li>
                 <li>
-                  Content generation uses up to 40 stored topics, their
-                  summaries and source IDs, and the latest 60 post/reel titles
-                  to avoid repeats.
+                  Generation uses up to 40 topics with summaries and source IDs,
+                  plus 60 recent titles to avoid repeats.
                 </li>
                 <li>
                   {insights.settings.useFeedback
-                    ? "Personalization includes up to 30 recently engaged posts, each with its like state, a 600-character caption excerpt, and its five latest comments."
-                    : "Personalization is off. Saved likes and comments are excluded from new generation inputs."}
+                    ? "Personalization uses up to 30 recently engaged posts: likes, 600-character caption excerpts, and five comments each."
+                    : "Personalization is off; saved likes and comments aren’t used."}
                 </li>
                 <li>
-                  Seen timestamps control replenishment. Each queue is filled
-                  toward six when two unseen items remain. Open feeds check for
-                  new conversations every five minutes.
+                  Queues refill toward six when two unseen items remain. Open
+                  feeds check for new chats every five minutes.
                 </li>
               </ul>
               <p className="border-t pt-3 text-xs leading-relaxed text-muted-foreground">
-                Inputs are sent to the selected model through your OpenCode
-                server. Source excerpts and input snapshots for the ten latest
-                runs per project are retained in this installation’s local
-                database and shared across its browsers. Models are instructed
-                to generalize private discussions and omit secrets from
-                generated posts.
+                Inputs go to the selected model through OpenCode. Excerpts and
+                inputs for the last ten runs per project are stored locally and
+                shared across this installation’s browsers. Models are
+                instructed to generalize private discussions and omit secrets.
               </p>
             </section>
             <section aria-labelledby="generation-topics" className="space-y-3">
               <h2 id="generation-topics" className="font-semibold">
-                Stored topics available to generation
+                Topics
               </h2>
               <p className="text-xs text-muted-foreground">
                 Latest {insights.topics.length} of {insights.stats.topics}{" "}
-                stored topics. Sources link to the original conversations.
+                topics. Sources link to chats.
               </p>
               {insights.topics.map((topic) => (
                 <details key={topic.id} className="rounded-xl border p-3">
@@ -329,8 +315,7 @@ export default async function GenerationPage({
               ))}
               {!insights.topics.length && (
                 <p className="text-sm text-muted-foreground">
-                  No topics stored yet. Open your feed after starting a project
-                  conversation.
+                  Start a project chat, then open the feed to extract topics.
                 </p>
               )}
             </section>
@@ -339,12 +324,12 @@ export default async function GenerationPage({
               className="space-y-3"
             >
               <h2 id="generation-feedback" className="font-semibold">
-                Feedback available for future posts
+                Feedback
               </h2>
               <p className="text-xs text-muted-foreground">
                 {insights.settings.useFeedback
-                  ? "Recent engagement that can shape the next batch."
-                  : "Saved engagement; excluded while personalization is off."}
+                  ? "Used to personalize the next batch."
+                  : "Saved; personalization is off."}
               </p>
               {insights.feedback.map((post, index) => (
                 <details
@@ -377,11 +362,10 @@ export default async function GenerationPage({
             </section>
             <section aria-labelledby="generation-runs" className="space-y-3">
               <h2 id="generation-runs" className="font-semibold">
-                Recent generation runs
+                Recent runs
               </h2>
               <p className="text-xs text-muted-foreground">
-                The ten latest runs with the settings and bounded inputs used at
-                the time. Earlier runs made before insights were added have no
+                Last ten runs with settings and inputs. Older runs may lack
                 snapshots.
               </p>
               {insights.runs.map((run) => (
@@ -393,8 +377,7 @@ export default async function GenerationPage({
               ))}
               {!insights.runs.length && (
                 <p className="text-sm text-muted-foreground">
-                  No recorded runs yet. Open the feed to start an eligible
-                  generation run.
+                  No runs yet. Open the feed to generate content.
                 </p>
               )}
             </section>

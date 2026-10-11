@@ -34,10 +34,9 @@ export function FolderBrowser({
   if (isGlobal) {
     return (
       <div className="rounded-2xl border p-4">
-        <h2 className="text-sm font-medium">Global folder location</h2>
+        <h2 className="text-sm font-medium">Working folder</h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          Uses the OpenCode server’s default folder. Add a repository project to
-          choose a working folder.
+          Uses the server default. Add a project to choose a folder.
         </p>
       </div>
     )
@@ -63,13 +62,12 @@ export function FolderBrowser({
             </p>
           </div>
           <p className="text-xs text-muted-foreground">
-            Remembered for this project in this browser. Choose a folder within
-            the same repository.
+            Choose a folder within this repository.
           </p>
           <DialogTrigger
             render={<Button variant="outline" className="h-10 w-full" />}
           >
-            <Folder aria-hidden="true" /> Change working folder
+            <Folder aria-hidden="true" /> Change folder
           </DialogTrigger>
         </div>
       )}
@@ -80,8 +78,8 @@ export function FolderBrowser({
           </DialogTitle>
           <DialogDescription>
             {mode === "add"
-              ? "Choose a repository folder on your OpenCode server. It will open as a project account."
-              : "Choose a folder in this project on your OpenCode server. To open another repository, use Add project."}
+              ? "Choose a repository on your OpenCode server."
+              : "Choose a folder in this repository. For another repository, use Add project."}
           </DialogDescription>
         </DialogHeader>
         {dialogOpen && (
@@ -290,11 +288,7 @@ function FolderPicker({
         disabled={loading || saving || !listing}
         onClick={select}
       >
-        {saving
-          ? "Saving…"
-          : mode === "add"
-            ? "Open as project"
-            : "Use this working folder"}
+        {saving ? "Saving…" : mode === "add" ? "Open as project" : "Use folder"}
       </Button>
     </div>
   )
