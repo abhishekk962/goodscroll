@@ -1,6 +1,5 @@
-export default async function Page() {
+import { ProjectContentFeed } from "@/components/social/project-content-feed"
 
-  return (
-    <>Hello World!</>
-  )
+export default function HomePage() {
+  return <ProjectContentFeed kind="post" />
 }
